@@ -10,8 +10,11 @@ import os
 
 app = Flask(__name__)
 
-BOT_TOKEN = os.getenv("8572616463:AAH1sQJsSlYOhj657naFUpKvlNquwtjzrLI")  # Telegram bot token (set in Railway environment)
-BASE_URL = "smart-earning.netlify.app"  # তোমার Netlify লিংক
+# =========================
+# Configuration
+# =========================
+BOT_TOKEN = "8572616463:AAH1sQJsSlYOhj657naFUpKvlNquwtjzrLI"  # Telegram bot token set directly
+BASE_URL = "https://smart-earning.netlify.app"  # তোমার Netlify site link
 
 # Memory storage for user UID mapping (runtime only)
 USERS = {}
@@ -22,6 +25,8 @@ USERS = {}
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def handle_telegram():
     data = request.get_json()
+    print("Received:", data)  # Debug: Telegram থেকে আসা data দেখাবে console এ
+
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
@@ -69,13 +74,25 @@ def handle_form():
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
-    requests.post(url, json=payload)
+    try:
+        response = requests.post(url, json=payload)
+        if not response.ok:
+            print("Failed to send message:", response.text)
+    except Exception as e:
+        print("Error sending message:", e)
 
 
+# =========================
+# Home route
+# =========================
 @app.route("/", methods=["GET"])
 def home():
     return "✅ SmartEarn Bot is running successfully!"
 
 
+# =========================
+# Run Flask
+# =========================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))  # Railway will set PORT automatically
+    app.run(host="0.0.0.0", port=port)
