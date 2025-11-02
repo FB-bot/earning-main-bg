@@ -11,7 +11,7 @@ import os
 app = Flask(__name__)
 
 BOT_TOKEN = os.getenv("8572616463:AAH1sQJsSlYOhj657naFUpKvlNquwtjzrLI")  # Telegram bot token (set in Railway environment)
-BASE_URL = "https://smartearn.netlify.app"  # তোমার Netlify লিংক
+BASE_URL = "smart-earning.netlify.app"  # তোমার Netlify লিংক
 
 # Memory storage for user UID mapping (runtime only)
 USERS = {}
