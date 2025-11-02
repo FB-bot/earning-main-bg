@@ -15,7 +15,7 @@ CORS(app)
 # Config
 # =========================
 USER_BOT_TOKEN = "8572616463:AAH1sQJsSlYOhj657naFUpKvlNquwtjzrLI"
-ADMIN_BOT_TOKEN = "8292480092:AAGlR5uZmj92shdUrtOEZyacezuQvYB1IPA"  # Replace with your admin bot token
+ADMIN_BOT_TOKEN = "8292480092:AAGlR5uZmj92shdUrtOEZyacezuQvYB1IPA"  # Updated token
 BASE_URL = "https://smart-earning.netlify.app"
 
 # Runtime memory
