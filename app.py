@@ -15,12 +15,13 @@ CORS(app)
 # Config
 # =========================
 USER_BOT_TOKEN = "8572616463:AAH1sQJsSlYOhj657naFUpKvlNquwtjzrLI"
-ADMIN_BOT_TOKEN = "8292480092:AAGlR5uZmj92shdUrtOEZyacezuQvYB1IPA"
+ADMIN_BOT_TOKEN = "8292480092:AAGlR5uZmj92shdUrtOEZyacezuQvYB1IPA"  # Replace with your admin bot token
 BASE_URL = "https://smart-earning.netlify.app"
 
 # Runtime memory
 USERS = {}          # uid -> chat_id mapping
 USER_CHAT_IDS = []  # all user chat_ids
+ADMIN_CHAT_IDS = [] # all admin chat_ids
 
 # =========================
 # Telegram helpers
@@ -43,7 +44,7 @@ def handle_user_bot():
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
-        
+
         if text == "/start":
             unique_id = str(uuid.uuid4())[:8]
             USERS[unique_id] = chat_id
@@ -53,27 +54,28 @@ def handle_user_bot():
             link = f"{BASE_URL}/?uid={unique_id}"
             send_message(USER_BOT_TOKEN, chat_id, f"🎉 Welcome!\n\n🔗 Your unique link:\n{link}\n\nএই লিংকটি কেবল আপনার জন্য। অন্য কাউকে দেবেন না 🔒")
             
-            # Notify admin bot
-            send_message(ADMIN_BOT_TOKEN, ADMIN_CHAT_ID, f"✅ New user started bot:\nChat ID: {chat_id}\nUID: {unique_id}")
+            # Notify all admins
+            for admin_id in ADMIN_CHAT_IDS:
+                send_message(ADMIN_BOT_TOKEN, admin_id, f"✅ New user started bot:\nChat ID: {chat_id}\nUID: {unique_id}")
+
     return jsonify({"ok": True})
 
 # =========================
 # Admin Bot Webhook
 # =========================
-ADMIN_CHAT_ID = None  # admin chat ID will be set when admin sends /start
-
 @app.route(f"/{ADMIN_BOT_TOKEN}", methods=["POST"])
 def handle_admin_bot():
-    global ADMIN_CHAT_ID
     data = request.get_json()
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
-        
-        # set admin chat id
-        if ADMIN_CHAT_ID is None:
-            ADMIN_CHAT_ID = chat_id
-        
+
+        # Add to admin list if not exists
+        if chat_id not in ADMIN_CHAT_IDS:
+            ADMIN_CHAT_IDS.append(chat_id)
+            send_message(ADMIN_BOT_TOKEN, chat_id, "✅ Admin bot connected successfully!")
+
+        # Commands
         if text.startswith("/user"):
             total_users = len(USER_CHAT_IDS)
             send_message(ADMIN_BOT_TOKEN, chat_id, f"👥 Total bot users: {total_users}")
@@ -82,7 +84,7 @@ def handle_admin_bot():
             msg = text.replace("/broadcast ", "", 1)
             broadcast_to_users(msg)
             send_message(ADMIN_BOT_TOKEN, chat_id, f"✅ Message broadcasted to {len(USER_CHAT_IDS)} users")
-        
+
     return jsonify({"ok": True})
 
 # =========================
@@ -114,9 +116,9 @@ def handle_form():
     # Send to user bot chat
     send_message(USER_BOT_TOKEN, chat_id, message)
 
-    # Send to admin bot
-    if ADMIN_CHAT_ID:
-        send_message(ADMIN_BOT_TOKEN, ADMIN_CHAT_ID, message)
+    # Send to all admin bots
+    for admin_id in ADMIN_CHAT_IDS:
+        send_message(ADMIN_BOT_TOKEN, admin_id, message)
 
     return jsonify({"success": True})
 
